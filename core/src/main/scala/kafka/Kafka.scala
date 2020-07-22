@@ -32,17 +32,21 @@ import scala.collection.JavaConverters._
 object Kafka extends Logging {
 
   def getPropsFromArgs(args: Array[String]): Properties = {
+    // 创建配置解析器
     val optionParser = new OptionParser(false)
     val overrideOpt = optionParser.accepts("override", "Optional property that should override values set in server.properties file")
       .withRequiredArg()
       .ofType(classOf[String])
 
+    // 参数为0
     if (args.length == 0) {
       CommandLineUtils.printUsageAndDie(optionParser, "USAGE: java [options] %s server.properties [--override property=value]*".format(classOf[KafkaServer].getSimpleName()))
     }
 
+    // 读取参数传递的路径，即:config/server.properties
     val props = Utils.loadProps(args(0))
 
+    // 参数大于1
     if (args.length > 1) {
       val options = optionParser.parse(args.slice(1, args.length): _*)
 
@@ -78,7 +82,9 @@ object Kafka extends Logging {
 
   def main(args: Array[String]): Unit = {
     try {
+      // 读取启动配置
       val serverProps = getPropsFromArgs(args)
+      // 封装KafkaServer
       val kafkaServerStartable = KafkaServerStartable.fromProps(serverProps)
 
       // register signal handler to log termination due to SIGTERM, SIGHUP and SIGINT (control-c)
