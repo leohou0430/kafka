@@ -131,15 +131,20 @@ object AdminUtils extends Logging with AdminUtilities {
                               fixedStartIndex: Int = -1,
                               startPartitionId: Int = -1): Map[Int, Seq[Int]] = {
     if (nPartitions <= 0)
+      // 分区个数partitions不能小于等于0
       throw new InvalidPartitionsException("Number of partitions must be larger than 0.")
     if (replicationFactor <= 0)
+      // 副本个数replicationFactor不能小于等于0
       throw new InvalidReplicationFactorException("Replication factor must be larger than 0.")
     if (replicationFactor > brokerMetadatas.size)
+      // 副本个数replicationFactor不能大于broker的节点个数
       throw new InvalidReplicationFactorException(s"Replication factor: $replicationFactor larger than available brokers: ${brokerMetadatas.size}.")
     if (brokerMetadatas.forall(_.rack.isEmpty))
+      // 没有指定机架信息的情况
       assignReplicasToBrokersRackUnaware(nPartitions, replicationFactor, brokerMetadatas.map(_.id), fixedStartIndex,
         startPartitionId)
     else {
+      // 针对指定机架信息的情况，更加复杂一点
       if (brokerMetadatas.exists(_.rack.isEmpty))
         throw new AdminOperationException("Not all brokers have rack information for replica rack aware assignment.")
       assignReplicasToBrokersRackAware(nPartitions, replicationFactor, brokerMetadatas, fixedStartIndex,
@@ -436,6 +441,7 @@ object AdminUtils extends Logging with AdminUtilities {
 
   def getBrokerMetadatas(zkUtils: ZkUtils, rackAwareMode: RackAwareMode = RackAwareMode.Enforced,
                          brokerList: Option[Seq[Int]] = None): Seq[BrokerMetadata] = {
+    // 从zookeeper上面获取集群中所有的broker
     val allBrokers = zkUtils.getAllBrokersInCluster()
     val brokers = brokerList.map(brokerIds => allBrokers.filter(b => brokerIds.contains(b.id))).getOrElse(allBrokers)
     val brokersWithRack = brokers.filter(_.rack.nonEmpty)
@@ -443,6 +449,7 @@ object AdminUtils extends Logging with AdminUtilities {
       throw new AdminOperationException("Not all brokers have rack information. Add --disable-rack-aware in command line" +
         " to make replica assignment without rack information.")
     }
+    // 根据是否禁用指定机架来处理broker的元数据
     val brokerMetadatas = rackAwareMode match {
       case RackAwareMode.Disabled => brokers.map(broker => BrokerMetadata(broker.id, None))
       case RackAwareMode.Safe if brokersWithRack.size < brokers.size =>
@@ -458,8 +465,11 @@ object AdminUtils extends Logging with AdminUtilities {
                   replicationFactor: Int,
                   topicConfig: Properties = new Properties,
                   rackAwareMode: RackAwareMode = RackAwareMode.Enforced) {
+    // 获取集群中每个broker的brokerId和机架信息信息的列表，为下面的
     val brokerMetadatas = getBrokerMetadatas(zkUtils, rackAwareMode)
+    // 根据是否禁用指定机架策略来生成分配策略
     val replicaAssignment = AdminUtils.assignReplicasToBrokers(brokerMetadatas, partitions, replicationFactor)
+    // 在zookeeper中创建或更新主题分区分配路径
     AdminUtils.createOrUpdateTopicPartitionAssignmentPathInZK(zkUtils, topic, replicaAssignment, topicConfig)
   }
 
