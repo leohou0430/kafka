@@ -91,11 +91,14 @@ object Kafka extends Logging {
       registerLoggingSignalHandler()
 
       // attach shutdown handler to catch terminating signals as well as normal termination
+      // 增加回调监听
       Runtime.getRuntime().addShutdownHook(new Thread("kafka-shutdown-hook") {
         override def run(): Unit = kafkaServerStartable.shutdown()
       })
 
+      // 启动服务
       kafkaServerStartable.startup()
+      // 底层用了java的CountDownLatch.await()。当kafka被关闭时，对应的CountDownLatch.countDown()方法会被调用,这时候程序就会真正退出
       kafkaServerStartable.awaitShutdown()
     }
     catch {
