@@ -115,6 +115,7 @@ public final class Metadata {
      */
     public synchronized void add(String topic) {
         Objects.requireNonNull(topic, "topic cannot be null");
+        // put返回为空代表map中没有该key，需要
         if (topics.put(topic, TOPIC_EXPIRY_NEEDS_UPDATE) == null) {
             requestUpdateForNewTopics();
         }
