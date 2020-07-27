@@ -650,10 +650,12 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
                           Deserializer<K> keyDeserializer,
                           Deserializer<V> valueDeserializer) {
         try {
+            // 获取client.id，如果为空则默认生成一个，默认：consumer-1
             String clientId = config.getString(ConsumerConfig.CLIENT_ID_CONFIG);
             if (clientId.isEmpty())
                 clientId = "consumer-" + CONSUMER_CLIENT_ID_SEQUENCE.getAndIncrement();
             this.clientId = clientId;
+            // 获取消费组名
             String groupId = config.getString(ConsumerConfig.GROUP_ID_CONFIG);
 
             LogContext logContext = new LogContext("[Consumer clientId=" + clientId + ", groupId=" + groupId + "] ");

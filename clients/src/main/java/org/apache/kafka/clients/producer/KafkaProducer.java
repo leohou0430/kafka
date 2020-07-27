@@ -1026,6 +1026,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      */
     @Override
     public void flush() {
+        // 刷新操作，等待RecordAccumulator中所有消息完成发送，在刷新完成前阻塞当前线程
         log.trace("Flushing accumulated records in producer.");
         this.accumulator.beginFlush();
         this.sender.wakeup();
@@ -1044,6 +1045,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      */
     @Override
     public List<PartitionInfo> partitionsFor(String topic) {
+        // 维护了一个Metadata对象用于存储kafka集群的元数据，Metadata数据会定期更新，该方法负责中从Metadata中获取指定Topic中的分区信息
         Objects.requireNonNull(topic, "topic cannot be null");
         try {
             return waitOnMetadata(topic, null, maxBlockTimeMs).cluster.partitionsForTopic(topic);
