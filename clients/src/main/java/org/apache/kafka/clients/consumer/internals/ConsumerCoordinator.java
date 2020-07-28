@@ -281,6 +281,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
 
         if (subscriptions.partitionsAutoAssigned()) {
             if (coordinatorUnknown()) {
+                // 计算出来哪台服务器是coondinator服务器
                 ensureCoordinatorReady();
                 now = time.milliseconds();
             }
@@ -292,6 +293,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                 if (subscriptions.hasPatternSubscription())
                     client.ensureFreshMetadata();
 
+                // 核心代码
                 ensureActiveGroup();
                 now = time.milliseconds();
             }
@@ -510,6 +512,7 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
         }
     }
 
+    // 提交offset
     public void commitOffsetsAsync(final Map<TopicPartition, OffsetAndMetadata> offsets, final OffsetCommitCallback callback) {
         invokeCompletedOffsetCommitCallbacks();
 

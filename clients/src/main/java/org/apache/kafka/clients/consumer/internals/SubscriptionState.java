@@ -58,7 +58,14 @@ public class SubscriptionState {
             "Subscription to topics, partitions and pattern are mutually exclusive";
 
     private enum SubscriptionType {
-        NONE, AUTO_TOPICS, AUTO_PATTERN, USER_ASSIGNED
+        // 初始
+        NONE,
+        // 按照指定的Topic名字进行订阅，自动分配分区
+        AUTO_TOPICS,
+        // 按照指定的正则表达式匹配Topic进行订阅，自动分配分区
+        AUTO_PATTERN,
+        // 用户手动指定消费者消费的Topic以及分区编号
+        USER_ASSIGNED
     }
 
     /* the type of subscription */
@@ -115,6 +122,7 @@ public class SubscriptionState {
         if (listener == null)
             throw new IllegalArgumentException("RebalanceListener cannot be null");
 
+        // 按照指定的Topic名字进行订阅，自动分配分区
         setSubscriptionType(SubscriptionType.AUTO_TOPICS);
 
         this.listener = listener;
@@ -132,7 +140,9 @@ public class SubscriptionState {
 
     private void changeSubscription(Set<String> topicsToSubscribe) {
         if (!this.subscription.equals(topicsToSubscribe)) {
+            // 如果使用AUTO_TOPICS或AUTO_PARTITION模式，则使用此集合记录所有订阅的Topic
             this.subscription = topicsToSubscribe;
+            // Consumer Group中会选一个Leader,Leader会使用这个集合记录Consumer Group中所有消费者订阅的Topic,而其他的Follower的这个集合只会保存自身订阅的Topic
             this.groupSubscription.addAll(topicsToSubscribe);
         }
     }
@@ -441,11 +451,16 @@ public class SubscriptionState {
     }
 
     private static class TopicPartitionState {
+        // Fetcher 下次去拉取时的 offset，Fecher 在拉取时需要知道这个值
         private Long position; // last consumed position
+        // 最后一次获取的高水位标记
         private Long highWatermark; // the high watermark from last fetch
         private Long lastStableOffset;
+        // consumer 已经处理完的最新一条消息的 offset，consumer 主动调用 offset-commit 时会更新这个值；
         private OffsetAndMetadata committed;  // last committed position
+        // 是否暂停
         private boolean paused;  // whether this partition has been paused by the user
+        // 这 topic-partition offset 重置的策略，重置之后，这个策略就会改为 null，防止再次操作
         private OffsetResetStrategy resetStrategy;  // the strategy to use if the offset needs resetting
 
         public TopicPartitionState() {

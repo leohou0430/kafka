@@ -192,7 +192,9 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
      * an in-flight fetch or pending fetch data.
      * @return number of fetches sent
      */
+    // 向订阅的所有 partition （只要该 leader 暂时没有拉取请求）所在 leader 发送 fetch 请求
     public int sendFetches() {
+        // 1. 创建 Fetch Request
         Map<Node, FetchRequest.Builder> fetchRequestMap = createFetchRequests();
         for (Map.Entry<Node, FetchRequest.Builder> fetchEntry : fetchRequestMap.entrySet()) {
             final FetchRequest.Builder request = fetchEntry.getValue();
@@ -200,6 +202,7 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
 
             log.debug("Sending {} fetch for partitions {} to broker {}", isolationLevel, request.fetchData().keySet(),
                     fetchTarget);
+            // 2 发送 Fetch Request
             client.send(fetchTarget, request)
                     .addListener(new RequestFutureListener<ClientResponse>() {
                         @Override
@@ -515,19 +518,24 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
      * @throws OffsetOutOfRangeException If there is OffsetOutOfRange error in fetchResponse and
      *         the defaultResetPolicy is NONE
      */
+    // 返回获取到的 the fetched records， 并更新 the consumed position
     public Map<TopicPartition, List<ConsumerRecord<K, V>>> fetchedRecords() {
         Map<TopicPartition, List<ConsumerRecord<K, V>>> fetched = new HashMap<>();
+        // 在 max.poll.records 中设置单词最大的拉取条数
         int recordsRemaining = maxPollRecords;
 
         try {
             while (recordsRemaining > 0) {
                 if (nextInLineRecords == null || nextInLineRecords.isFetched) {
+                    // 从队列中获取但不移除此队列的头；如果此队列为空，返回null
                     CompletedFetch completedFetch = completedFetches.peek();
                     if (completedFetch == null) break;
 
+                    // 获取下一个要处理的 nextInLineRecords
                     nextInLineRecords = parseCompletedFetch(completedFetch);
                     completedFetches.poll();
                 } else {
+                    // 拉取records,更新 position
                     List<ConsumerRecord<K, V>> records = fetchRecords(nextInLineRecords, recordsRemaining);
                     TopicPartition partition = nextInLineRecords.partition;
                     if (!records.isEmpty()) {
@@ -562,18 +570,22 @@ public class Fetcher<K, V> implements SubscriptionState.Listener, Closeable {
         } else {
             // note that the consumed position should always be available as long as the partition is still assigned
             long position = subscriptions.position(partitionRecords.partition);
+            // 这个 tp 不能来消费了,比如调用 pause方法暂停消费
             if (!subscriptions.isFetchable(partitionRecords.partition)) {
                 // this can happen when a partition is paused before fetched records are returned to the consumer's poll call
                 log.debug("Not returning fetched records for assigned partition {} since it is no longer fetchable",
                         partitionRecords.partition);
             } else if (partitionRecords.nextFetchOffset == position) {
+                // 获取该 tp 对应的records,并更新 partitionRecords 的 fetchOffset（用于判断是否顺序）
                 List<ConsumerRecord<K, V>> partRecords = partitionRecords.fetchRecords(maxRecords);
 
                 long nextOffset = partitionRecords.nextFetchOffset;
                 log.trace("Returning fetched records at offset {} for assigned partition {} and update " +
                         "position to {}", position, partitionRecords.partition, nextOffset);
+                // 更新消费的到 offset（ the fetch position）
                 subscriptions.position(partitionRecords.partition, nextOffset);
 
+                // 获取 Lag（即 position与 hw 之间差值）,hw 为 null 时,才返回 null
                 Long partitionLag = subscriptions.partitionLag(partitionRecords.partition, isolationLevel);
                 if (partitionLag != null)
                     this.sensors.recordPartitionLag(partitionRecords.partition, partitionLag);

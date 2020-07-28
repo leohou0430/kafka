@@ -311,7 +311,9 @@ public abstract class AbstractCoordinator implements Closeable {
     public void ensureActiveGroup() {
         // always ensure that the coordinator is ready because we may have been disconnected
         // when sending heartbeats and does not necessarily require us to rejoin the group.
+        // 确保消费者协调器已经就绪
         ensureCoordinatorReady();
+        // 开始心跳检测
         startHeartbeatThreadIfNeeded();
         joinGroupIfNeeded();
     }
